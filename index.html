@@ -58,12 +58,6 @@ button{
   border-radius:8px;
   background:#334155;
 }
-
-.topbar{
-  margin-bottom:15px;
-  font-size:12px;
-  text-align:right;
-}
 </style>
 </head>
 
@@ -76,32 +70,27 @@ button{
 <div id="auth">
 <input id="email" placeholder="Seu Gmail">
 <input id="senha" type="password" placeholder="Senha">
-<button onclick="registrar()">Criar Conta</button>
-<button onclick="login()">Entrar</button>
+<button id="btnCriar">Criar Conta</button>
+<button id="btnLogin">Entrar</button>
 </div>
 
 <div id="app" style="display:none;">
-
-<div class="topbar">
-<span id="usuario"></span>
-<button onclick="logout()">Sair</button>
-</div>
+<p id="usuario"></p>
 
 <input id="salaInput" placeholder="Código da sala">
-<button onclick="entrarSala()">Entrar na sala</button>
+<button id="btnSala">Entrar na sala</button>
 
 <div id="chat"></div>
 
 <input id="msg" placeholder="Digite mensagem">
-<button onclick="enviar()">Enviar</button>
-
+<button id="btnEnviar">Enviar</button>
 </div>
 
 </div>
 
 <script>
 
-const supabase = window.supabase.createClient(
+const supabaseClient = supabase.createClient(
   "https://ggfsvnbdgywybfuftoxr.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZnN2bmJkZ3l3eWJmdWZ0b3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2ODI5NTEsImV4cCI6MjA4NzI1ODk1MX0.XrWGUNPgdlvenK08xt1WupCufwZHBo0wyI1Z_Idihkk"
 );
@@ -109,50 +98,60 @@ const supabase = window.supabase.createClient(
 let salaAtual = null;
 let userAtual = null;
 
-async function registrar(){
+document.getElementById("btnCriar").onclick = async function(){
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
 
-  const { error } = await supabase.auth.signUp({ email, password: senha });
+  const { error } = await supabaseClient.auth.signUp({
+    email,
+    password: senha
+  });
 
   if(error) alert(error.message);
-  else alert("Conta criada! Agora faça login.");
-}
+  else alert("Conta criada!");
+};
 
-async function login(){
+document.getElementById("btnLogin").onclick = async function(){
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password: senha
+  });
 
   if(error){
     alert(error.message);
   } else {
     userAtual = data.user;
-    iniciarApp();
+    document.getElementById("auth").style.display="none";
+    document.getElementById("app").style.display="block";
+    document.getElementById("usuario").innerText = userAtual.email;
   }
-}
+};
 
-function iniciarApp(){
-  document.getElementById("auth").style.display="none";
-  document.getElementById("app").style.display="block";
-  document.getElementById("usuario").innerText = userAtual.email;
-}
-
-async function logout(){
-  await supabase.auth.signOut();
-  location.reload();
-}
-
-function entrarSala(){
+document.getElementById("btnSala").onclick = function(){
   salaAtual = document.getElementById("salaInput").value;
   carregar();
-}
+};
+
+document.getElementById("btnEnviar").onclick = async function(){
+  if(!salaAtual) return alert("Entre em uma sala");
+
+  await supabaseClient.from("mensagens").insert([{
+    texto: document.getElementById("msg").value,
+    sala: salaAtual,
+    user_id: userAtual.id,
+    user_email: userAtual.email
+  }]);
+
+  document.getElementById("msg").value="";
+};
 
 async function carregar(){
   if(!salaAtual) return;
 
-  const { data } = await supabase
+  const { data } = await supabaseClient
     .from("mensagens")
     .select("*")
     .eq("sala", salaAtual)
@@ -173,22 +172,7 @@ async function carregar(){
   chat.scrollTop = chat.scrollHeight;
 }
 
-async function enviar(){
-  if(!salaAtual) return alert("Entre em uma sala");
-
-  await supabase
-    .from("mensagens")
-    .insert([{
-      texto: document.getElementById("msg").value,
-      sala: salaAtual,
-      user_id: userAtual.id,
-      user_email: userAtual.email
-    }]);
-
-  document.getElementById("msg").value="";
-}
-
-supabase
+supabaseClient
   .channel('chat')
   .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mensagens' },
