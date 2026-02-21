@@ -2,14 +2,14 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Chat Privado Seguro</title>
+<title>Chat Privado</title>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <style>
 body{
   margin:0;
   font-family:Arial;
-  background:linear-gradient(135deg,#0f172a,#1e293b);
+  background:#0f172a;
   color:white;
   display:flex;
   justify-content:center;
@@ -35,7 +35,7 @@ input{
 button{
   width:100%;
   padding:12px;
-  margin-top:8px;
+  margin-top:6px;
   border:none;
   border-radius:8px;
   background:#22c55e;
@@ -46,17 +46,17 @@ button{
 
 #chatBox{
   height:300px;
-  background:#0f172a;
   overflow:auto;
+  background:#1e293b;
   padding:10px;
   border-radius:8px;
   margin-top:10px;
 }
 
 .msg{
+  background:#0f172a;
+  padding:8px;
   margin:5px 0;
-  padding:6px;
-  background:#1e293b;
   border-radius:6px;
 }
 .small{
@@ -70,24 +70,25 @@ button{
 <div class="container">
 
 <div id="loginArea">
-<h2>Chat Privado Seguro</h2>
+<h2>Login</h2>
 <input id="email" placeholder="Email">
 <input id="senha" type="password" placeholder="Senha">
-<button onclick="criarConta()">Criar Conta</button>
-<button onclick="entrar()">Entrar</button>
+<button id="btnCriar">Criar Conta</button>
+<button id="btnEntrar">Entrar</button>
 </div>
 
 <div id="chatArea" style="display:none;">
 <h2>Chat Privado</h2>
+
 <input id="nome" placeholder="Seu nome">
 <input id="sala" placeholder="Código da sala">
-<button onclick="entrarSala()">Entrar na Sala</button>
+<button id="btnSala">Entrar na Sala</button>
 
 <div id="chatBox"></div>
 
 <input id="mensagem" placeholder="Digite mensagem">
-<button onclick="enviar()">Enviar</button>
-<button onclick="logout()" style="background:#ef4444;">Sair</button>
+<button id="btnEnviar">Enviar</button>
+<button id="btnSair" style="background:#ef4444;">Sair</button>
 </div>
 
 </div>
@@ -96,105 +97,97 @@ button{
 const supabaseUrl = "https://ggfsvnbdgywybfuftoxr.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZnN2bmJkZ3l3eWJmdWZ0b3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2ODI5NTEsImV4cCI6MjA4NzI1ODk1MX0.XrWGUNPgdlvenK08xt1WupCufwZHBo0wyI1Z_Idihkk";
 
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+const { createClient } = supabase;
+const client = createClient(supabaseUrl, supabaseKey);
 
 let salaAtual = null;
 
-// Verifica sessão
-async function verificarLogin(){
-  const { data } = await supabase.auth.getSession();
+/* ---------- Verificar Sessão ---------- */
+async function verificarSessao(){
+  const { data } = await client.auth.getSession();
   if(data.session){
-    document.getElementById("loginArea").style.display="none";
-    document.getElementById("chatArea").style.display="block";
+    loginArea.style.display="none";
+    chatArea.style.display="block";
   }
 }
-verificarLogin();
+verificarSessao();
 
-// Criar conta
-async function criarConta(){
+/* ---------- Criar Conta ---------- */
+btnCriar.onclick = async () => {
+  const email = email.value;
+  const senha = document.getElementById("senha").value;
+
+  const { error } = await client.auth.signUp({ email, password:senha });
+
+  if(error) alert(error.message);
+  else alert("Conta criada!");
+};
+
+/* ---------- Login ---------- */
+btnEntrar.onclick = async () => {
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
 
-  const { error } = await supabase.auth.signUp({
-    email:email,
+  const { error } = await client.auth.signInWithPassword({
+    email,
     password:senha
   });
 
-  if(error){
-    alert(error.message);
-  }else{
-    alert("Conta criada!");
-  }
-}
+  if(error) alert(error.message);
+  else verificarSessao();
+};
 
-// Login
-async function entrar(){
-  const email = document.getElementById("email").value;
-  const senha = document.getElementById("senha").value;
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email:email,
-    password:senha
-  });
-
-  if(error){
-    alert(error.message);
-  }else{
-    verificarLogin();
-  }
-}
-
-// Logout
-async function logout(){
-  await supabase.auth.signOut();
+/* ---------- Logout ---------- */
+btnSair.onclick = async () => {
+  await client.auth.signOut();
   location.reload();
-}
+};
 
-// Entrar na sala
-function entrarSala(){
+/* ---------- Entrar na Sala ---------- */
+btnSala.onclick = () => {
   salaAtual = document.getElementById("sala").value;
   carregarMensagens();
-}
+};
 
-// Enviar mensagem
-async function enviar(){
+/* ---------- Enviar Mensagem ---------- */
+btnEnviar.onclick = async () => {
   const texto = document.getElementById("mensagem").value;
   const nome = document.getElementById("nome").value;
 
   if(!texto || !salaAtual) return;
 
-  await supabase.from("mensagens").insert([
-    { texto:texto, nome:nome, sala:salaAtual }
+  const { error } = await client.from("mensagens").insert([
+    { texto, nome, sala:salaAtual }
   ]);
 
-  document.getElementById("mensagem").value="";
-}
+  if(error) alert(error.message);
 
-// Carregar mensagens
+  document.getElementById("mensagem").value="";
+};
+
+/* ---------- Carregar Mensagens ---------- */
 async function carregarMensagens(){
   if(!salaAtual) return;
 
-  const { data } = await supabase
-  .from("mensagens")
-  .select("*")
-  .eq("sala", salaAtual)
-  .order("id",{ascending:true});
+  const { data } = await client
+    .from("mensagens")
+    .select("*")
+    .eq("sala", salaAtual)
+    .order("id", { ascending:true });
 
-  const chat = document.getElementById("chatBox");
-  chat.innerHTML="";
-
+  chatBox.innerHTML="";
   data.forEach(m=>{
-    chat.innerHTML+=`
+    chatBox.innerHTML += `
       <div class="msg">
         <b>${m.nome}</b>
         <div>${m.texto}</div>
-        <div class="small">${m.sala}</div>
+        <div class="small">Sala: ${m.sala}</div>
       </div>
     `;
   });
 }
 
-// Atualiza a cada 3 segundos
+/* Atualiza automaticamente */
 setInterval(carregarMensagens,3000);
 
 </script>
