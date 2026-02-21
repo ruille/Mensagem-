@@ -2,9 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Mini Fórum Supabase</title>
+<title>Mini Fórum Online</title>
 
-<!-- SUPABASE CORRETO PARA NAVEGADOR -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <style>
@@ -12,23 +11,48 @@ body{
   background:#111;
   color:white;
   font-family:Arial;
-  padding:30px
+  padding:20px;
 }
 
 #chat{
   background:#222;
-  height:300px;
+  height:350px;
   overflow:auto;
-  padding:10px;
+  padding:15px;
+  border-radius:10px;
   margin-bottom:10px;
+}
+
+.mensagem{
+  margin-bottom:10px;
+  padding:8px;
+  background:#333;
   border-radius:8px;
 }
 
+.nome{
+  font-weight:bold;
+  color:#4CAF50;
+  font-size:14px;
+}
+
+.texto{
+  font-size:15px;
+}
+
 input{
-  width:75%;
   padding:10px;
   border-radius:6px;
   border:none;
+}
+
+#nomeInput{
+  width:100%;
+  margin-bottom:10px;
+}
+
+#msg{
+  width:75%;
 }
 
 button{
@@ -36,6 +60,8 @@ button{
   border:none;
   border-radius:6px;
   cursor:pointer;
+  background:#4CAF50;
+  color:white;
 }
 </style>
 </head>
@@ -44,6 +70,8 @@ button{
 
 <h2>Mini Fórum Online</h2>
 
+<input id="nomeInput" placeholder="Digite seu nome">
+
 <div id="chat"></div>
 
 <input id="msg" placeholder="Digite mensagem">
@@ -51,22 +79,29 @@ button{
 
 <script>
 
-// 🔹 SUA CONFIGURAÇÃO
 const supabaseUrl = "https://ggfsvnbdgywybfuftoxr.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZnN2bmJkZ3l3eWJmdWZ0b3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2ODI5NTEsImV4cCI6MjA4NzI1ODk1MX0.XrWGUNPgdlvenK08xt1WupCufwZHBo0wyI1Z_Idihkk"; // coloque sua chave aqui
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZnN2bmJkZ3l3eWJmdWZ0b3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2ODI5NTEsImV4cCI6MjA4NzI1ODk1MX0.XrWGUNPgdlvenK08xt1WupCufwZHBo0wyI1Z_Idihkk";
 
-// 🔹 CRIANDO CLIENTE
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-// 🔹 CARREGAR MENSAGENS
+// Salvar nome no navegador
+const nomeSalvo = localStorage.getItem("nome");
+if(nomeSalvo){
+  document.getElementById("nomeInput").value = nomeSalvo;
+}
+
+document.getElementById("nomeInput").addEventListener("input", function(){
+  localStorage.setItem("nome", this.value);
+});
+
 async function carregar(){
   const { data, error } = await supabaseClient
     .from("mensagens")
     .select("*")
-    .order("created_at", { ascending: true });
+    .order("id", { ascending: true });
 
   if(error){
-    console.log("Erro ao carregar:", error);
+    console.log(error);
     return;
   }
 
@@ -74,37 +109,45 @@ async function carregar(){
   chat.innerHTML = "";
 
   data.forEach(m=>{
-    chat.innerHTML += `<p>${m.texto}</p>`;
+    chat.innerHTML += `
+      <div class="mensagem">
+        <div class="nome">${m.nome}</div>
+        <div class="texto">${m.texto}</div>
+      </div>
+    `;
   });
 
   chat.scrollTop = chat.scrollHeight;
 }
 
-// 🔹 ENVIAR MENSAGEM
 async function enviar(){
   const texto = document.getElementById("msg").value;
-  if(!texto) return;
+  const nome = document.getElementById("nomeInput").value;
+
+  if(!texto || !nome){
+    alert("Digite seu nome e mensagem");
+    return;
+  }
 
   const { error } = await supabaseClient
     .from("mensagens")
-    .insert([{ texto }]);
+    .insert([{ texto, nome }]);
 
   if(error){
-    console.log("Erro ao enviar:", error);
-    alert("Erro ao enviar mensagem. Veja console.");
+    console.log(error);
+    alert("Erro ao enviar");
     return;
   }
 
   document.getElementById("msg").value="";
-  carregar();
 }
 
-// 🔹 ATUALIZA EM TEMPO REAL
 supabaseClient
   .channel('mensagens')
-  .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'mensagens' },
-      () => carregar()
+  .on(
+    'postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'mensagens' },
+    () => carregar()
   )
   .subscribe();
 
