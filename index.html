@@ -3,186 +3,199 @@
 <head>
 <meta charset="UTF-8">
 <title>Chat Privado Seguro</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 body{
   margin:0;
-  background:#0f172a;
   font-family:Arial;
+  background:linear-gradient(135deg,#0f172a,#1e293b);
   color:white;
   display:flex;
   justify-content:center;
+  align-items:center;
+  height:100vh;
 }
 
 .container{
-  width:100%;
+  width:95%;
   max-width:500px;
-  padding:20px;
 }
 
 input{
   width:100%;
-  padding:10px;
+  padding:12px;
+  margin:6px 0;
   border:none;
   border-radius:8px;
-  margin-bottom:8px;
   background:#1e293b;
   color:white;
 }
 
 button{
-  padding:10px;
+  width:100%;
+  padding:12px;
+  margin-top:8px;
   border:none;
   border-radius:8px;
   background:#22c55e;
   color:white;
+  font-weight:bold;
   cursor:pointer;
-  width:100%;
-  margin-bottom:8px;
 }
 
-#chat{
-  background:#1e293b;
-  height:350px;
+#chatBox{
+  height:300px;
+  background:#0f172a;
   overflow:auto;
   padding:10px;
-  border-radius:10px;
-  margin-bottom:10px;
+  border-radius:8px;
+  margin-top:10px;
 }
 
-.mensagem{
-  margin-bottom:8px;
-  padding:8px;
-  border-radius:8px;
-  background:#334155;
+.msg{
+  margin:5px 0;
+  padding:6px;
+  background:#1e293b;
+  border-radius:6px;
+}
+.small{
+  font-size:12px;
+  opacity:0.6;
 }
 </style>
 </head>
-
 <body>
 
 <div class="container">
 
+<div id="loginArea">
 <h2>Chat Privado Seguro</h2>
-
-<div id="auth">
-<input id="email" placeholder="Seu Gmail">
+<input id="email" placeholder="Email">
 <input id="senha" type="password" placeholder="Senha">
-<button id="btnCriar">Criar Conta</button>
-<button id="btnLogin">Entrar</button>
+<button onclick="criarConta()">Criar Conta</button>
+<button onclick="entrar()">Entrar</button>
 </div>
 
-<div id="app" style="display:none;">
-<p id="usuario"></p>
+<div id="chatArea" style="display:none;">
+<h2>Chat Privado</h2>
+<input id="nome" placeholder="Seu nome">
+<input id="sala" placeholder="Código da sala">
+<button onclick="entrarSala()">Entrar na Sala</button>
 
-<input id="salaInput" placeholder="Código da sala">
-<button id="btnSala">Entrar na sala</button>
+<div id="chatBox"></div>
 
-<div id="chat"></div>
-
-<input id="msg" placeholder="Digite mensagem">
-<button id="btnEnviar">Enviar</button>
+<input id="mensagem" placeholder="Digite mensagem">
+<button onclick="enviar()">Enviar</button>
+<button onclick="logout()" style="background:#ef4444;">Sair</button>
 </div>
 
 </div>
 
 <script>
+const supabaseUrl = "https://ggfsvnbdgywybfuftoxr.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZnN2bmJkZ3l3eWJmdWZ0b3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2ODI5NTEsImV4cCI6MjA4NzI1ODk1MX0.XrWGUNPgdlvenK08xt1WupCufwZHBo0wyI1Z_Idihkk";
 
-const supabaseClient = supabase.createClient(
-  "https://ggfsvnbdgywybfuftoxr.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdnZnN2bmJkZ3l3eWJmdWZ0b3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2ODI5NTEsImV4cCI6MjA4NzI1ODk1MX0.XrWGUNPgdlvenK08xt1WupCufwZHBo0wyI1Z_Idihkk"
-);
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 let salaAtual = null;
-let userAtual = null;
 
-document.getElementById("btnCriar").onclick = async function(){
+// Verifica sessão
+async function verificarLogin(){
+  const { data } = await supabase.auth.getSession();
+  if(data.session){
+    document.getElementById("loginArea").style.display="none";
+    document.getElementById("chatArea").style.display="block";
+  }
+}
+verificarLogin();
+
+// Criar conta
+async function criarConta(){
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
 
-  const { error } = await supabaseClient.auth.signUp({
-    email,
-    password: senha
-  });
-
-  if(error) alert(error.message);
-  else alert("Conta criada!");
-};
-
-document.getElementById("btnLogin").onclick = async function(){
-  const email = document.getElementById("email").value;
-  const senha = document.getElementById("senha").value;
-
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email,
-    password: senha
+  const { error } = await supabase.auth.signUp({
+    email:email,
+    password:senha
   });
 
   if(error){
     alert(error.message);
-  } else {
-    userAtual = data.user;
-    document.getElementById("auth").style.display="none";
-    document.getElementById("app").style.display="block";
-    document.getElementById("usuario").innerText = userAtual.email;
+  }else{
+    alert("Conta criada!");
   }
-};
+}
 
-document.getElementById("btnSala").onclick = function(){
-  salaAtual = document.getElementById("salaInput").value;
-  carregar();
-};
+// Login
+async function entrar(){
+  const email = document.getElementById("email").value;
+  const senha = document.getElementById("senha").value;
 
-document.getElementById("btnEnviar").onclick = async function(){
-  if(!salaAtual) return alert("Entre em uma sala");
+  const { error } = await supabase.auth.signInWithPassword({
+    email:email,
+    password:senha
+  });
 
-  await supabaseClient.from("mensagens").insert([{
-    texto: document.getElementById("msg").value,
-    sala: salaAtual,
-    user_id: userAtual.id,
-    user_email: userAtual.email
-  }]);
+  if(error){
+    alert(error.message);
+  }else{
+    verificarLogin();
+  }
+}
 
-  document.getElementById("msg").value="";
-};
+// Logout
+async function logout(){
+  await supabase.auth.signOut();
+  location.reload();
+}
 
-async function carregar(){
+// Entrar na sala
+function entrarSala(){
+  salaAtual = document.getElementById("sala").value;
+  carregarMensagens();
+}
+
+// Enviar mensagem
+async function enviar(){
+  const texto = document.getElementById("mensagem").value;
+  const nome = document.getElementById("nome").value;
+
+  if(!texto || !salaAtual) return;
+
+  await supabase.from("mensagens").insert([
+    { texto:texto, nome:nome, sala:salaAtual }
+  ]);
+
+  document.getElementById("mensagem").value="";
+}
+
+// Carregar mensagens
+async function carregarMensagens(){
   if(!salaAtual) return;
 
-  const { data } = await supabaseClient
-    .from("mensagens")
-    .select("*")
-    .eq("sala", salaAtual)
-    .order("id", { ascending: true });
+  const { data } = await supabase
+  .from("mensagens")
+  .select("*")
+  .eq("sala", salaAtual)
+  .order("id",{ascending:true});
 
-  const chat = document.getElementById("chat");
-  chat.innerHTML = "";
+  const chat = document.getElementById("chatBox");
+  chat.innerHTML="";
 
   data.forEach(m=>{
-    chat.innerHTML += `
-      <div class="mensagem">
-        <b>${m.user_email}</b><br>
-        ${m.texto}
+    chat.innerHTML+=`
+      <div class="msg">
+        <b>${m.nome}</b>
+        <div>${m.texto}</div>
+        <div class="small">${m.sala}</div>
       </div>
     `;
   });
-
-  chat.scrollTop = chat.scrollHeight;
 }
 
-supabaseClient
-  .channel('chat')
-  .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'mensagens' },
-      payload => {
-        if(payload.new.sala === salaAtual){
-          carregar();
-        }
-      }
-  )
-  .subscribe();
+// Atualiza a cada 3 segundos
+setInterval(carregarMensagens,3000);
 
 </script>
 
